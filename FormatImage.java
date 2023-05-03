@@ -3,42 +3,42 @@ package com.mycompany.imagej;
 import net.imglib2.Cursor;
 import net.imglib2.img.Img;
 import net.imglib2.Dimensions;
-import net.imglib2.img.ImgFactory;
 import net.imglib2.type.BooleanType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.Type;
 
-// An image formatter. U is for any image type that might be used and T is for pixel type
-public class FormatImage<T extends RealType<T>, U extends BooleanType<U>> {
+// An image formatter. T is the original image's pixel type, U the boolean thresholded version, S the pixel type of the binary version
+public class FormatImage<T extends RealType<T>, U extends BooleanType<U>, S extends Type<S>> {
 	final Img<T> input ;
 	public Img<U> output ;
+	public Img<S> typedOutput ;
 	final Dimensions dimensions ;
 	
-	public FormatImage (final Img<T> input, Img<U> output) {
+	public FormatImage (final Img<T> input, Img<U> output, Img<S> typedOutput) {
 		this.input = input ;
 		this.output = output ;
+		this.typedOutput = typedOutput ;
 		
 		dimensions = input;
 		output = output.factory().create(dimensions) ;
+		typedOutput = typedOutput.factory().create(dimensions) ;
 	}
 	
-	public <S extends Type<S>> void createTypedMask (final T lowThresh, final T highThresh, final double diffThresh, final S maxVal) {
-		Img<U> mask = createMask(lowThresh, highThresh, diffThresh) ;
-		Img<Boolean> boolMask;
-		Cursor<S> cursorTyped = typedMask.cursor();
-		Cursor<Boolean> cursorBool = boolMask.cursor();
+	public void typeMask (final T lowThresh, final T highThresh, final double diffThresh, final S MAXVAL) {
+		Cursor<S> cursorTyped = typedOutput.cursor();
+		Cursor<U> cursorBool = output.cursor();
 		
 		while (cursorBool.hasNext()) {
 			cursorBool.fwd();
 			cursorTyped.fwd();
 			
-			cursorTyped.next().set(cursorBool.next()?null:maxVal);
+			cursorTyped.next().set(cursorBool.next().get()?null:MAXVAL);
 		}
 	}
 	
 	// Creates a copy of the input without the out of bound values. 
 	// TODO: have a duplicate of the method but with function interface to pass different thresholding methods from a threshold class
-	public Img<U> createMask (final T lowThresh, final T highThresh, final double diffThresh) {
+	public void createMask (final T lowThresh, final T highThresh, final double diffThresh) {
 		//Create output with same properties and cursors for both images
 		Cursor< T > cursorInput = input.cursor();
 		Cursor< U > cursorOutput = output.cursor();
@@ -50,7 +50,6 @@ public class FormatImage<T extends RealType<T>, U extends BooleanType<U>> {
 
 			cursorOutput.next().set(isInBound(cursorInput.next(), lowThresh, highThresh, diffThresh));
 		}
-		return output;
 	}
 	
 	// Returns whether the pixel's value fit into the threshold

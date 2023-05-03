@@ -12,10 +12,10 @@ import net.imagej.Dataset;
 import net.imagej.ImageJ;
 import net.imagej.ops.OpService;
 
-import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.Img;
-import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.Point;
+import net.imglib2.algorithm.region.hypersphere.HyperSphere;
 
 import org.scijava.command.Command;
 import org.scijava.plugin.Parameter;
@@ -26,8 +26,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.awt.Polygon;
 
-import ij.gui.Roi;
-import ij.process.ImageProcessor;
 /**
  * You should replace the parameter fields with your own inputs and outputs,
  * and replace the {@link run} method implementation with your own logic.
@@ -45,18 +43,31 @@ public class NucleiCounter implements Command {
     @Parameter
     private OpService opService;
     
-    
-    ArrayList<Nucleus> nucleiList = new ArrayList<Nucleus>();
-    ArrayList<Polygon> nucleiPolygons = new ArrayList<Polygon>();
+    public ArrayList<Nucleus> nucleiList = new ArrayList<Nucleus>();
+    public ArrayList<Polygon> nucleiPolygons = new ArrayList<Polygon>();
     
     @Override
     public void run() {
-        final Img<Float> image = currentData.getImgPlus().getImg();
+        final Img<FloatType> image = (Img<FloatType>) currentData.getImgPlus().getImg();
+        PolygonFromThreshold polygonfromthreshold = new PolygonFromThreshold (image);
+        
+        nucleiPolygons = polygonfromthreshold.createPolygons();
+        getNucleiProperties();
+        displayCentroids(image);
     }
     
+    // Draw spheres of radius 1 with every value inside set to 1 at the center of every nucleus
+    void displayCentroids (Img<FloatType> img) {
+    	for (Nucleus n:nucleiList) {
+    		HyperSphere<FloatType> hyperSphere = new HyperSphere<>(img, n.center, 1);
+    		for (FloatType value:hyperSphere) {
+    			value.setOne();
+    		}
+    	}
+    }
     
     // Loops through polygons and computes centroids and areas
-    void getNucleiPropreties () {
+    void getNucleiProperties () {
     	Nucleus nucleus = new Nucleus ();
     	for (int i = 0 ; i < nucleiPolygons.size() ; i++) {
     		nucleus.area = area(nucleiPolygons.get(i));

@@ -10,7 +10,7 @@ import net.imglib2.type.numeric.real.FloatType;
 // simpler and heavily commented version of the ThresholdToSelection of ij.plugin.filter. Can be used with any thresholding method.
 public class PolygonFromThreshold {
 	Img<FloatType> img;
-	FormatImage<FloatType,BoolType> formatImage;
+	FormatImage<FloatType,BoolType, FloatType> formatImage;
 	Img<BoolType> binThresholded;
 	public Img<FloatType> thresholdedMask;
 	int width, height;
@@ -21,7 +21,7 @@ public class PolygonFromThreshold {
 	// is constructed with an ImagePlus and operates on an ImageProcessor thresholded mask
 	public PolygonFromThreshold(Img<FloatType> img) {
 		this.img = img;
-		formatImage = new FormatImage(this.img, binThresholded);
+		formatImage = new FormatImage<FloatType, BoolType, FloatType>(this.img, binThresholded, thresholdedMask);
 		formatImage.createMask(null, null, 0); // TODO
 	}
 	
@@ -339,8 +339,10 @@ public class PolygonFromThreshold {
 
 	}
 	
-    // Is ran in a thresholded mask
+    /* Is ran in a thresholded mask. 
+     * binThresholded is an Img<BoolType>, setPositionAndGet returns the BoolType of a pixel, 
+     * get() extracts the boolean wrapped by the BoolType */
     public boolean selected (int x, int y) {
-    	return thresholdedMask.randomAccess().setPositionAndGet(x,y) != null;
+    	return binThresholded.randomAccess().setPositionAndGet(x,y).get();
     }
 }
