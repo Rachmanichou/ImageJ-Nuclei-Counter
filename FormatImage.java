@@ -2,29 +2,25 @@ package com.mycompany.imagej;
 
 import net.imglib2.Cursor;
 import net.imglib2.img.Img;
-import net.imglib2.Dimensions;
 import net.imglib2.type.BooleanType;
+import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.Type;
 
 // An image formatter. T is the original image's pixel type, U the boolean thresholded version, S the pixel type of the binary version
-public class FormatImage<T extends RealType<T>, U extends BooleanType<U>, S extends Type<S>> {
+public class FormatImage<T extends RealType<T>, U extends BooleanType<U> & NativeType<U>, S extends Type<S>> {
 	final Img<T> input ;
 	public Img<U> output ;
 	public Img<S> typedOutput ;
-	final Dimensions dimensions ;
 	
 	public FormatImage (final Img<T> input, Img<U> output, Img<S> typedOutput) {
 		this.input = input ;
 		this.output = output ;
 		this.typedOutput = typedOutput ;
-		
-		dimensions = input;
-		output = output.factory().create(dimensions) ;
-		typedOutput = typedOutput.factory().create(dimensions) ;
 	}
 	
-	public void typeMask (final T lowThresh, final T highThresh, final double diffThresh, final S MAXVAL) {
+	// Generate a mask of any PixelType from a binary Img
+	public void typeMask (final S MAXVAL) {
 		Cursor<S> cursorTyped = typedOutput.cursor();
 		Cursor<U> cursorBool = output.cursor();
 		
@@ -52,44 +48,13 @@ public class FormatImage<T extends RealType<T>, U extends BooleanType<U>, S exte
 		}
 	}
 	
-	// Returns whether the pixel's value fit into the threshold
+	// Returns whether the pixel's value fit into the thresholds
 	private boolean isInBound (final T cursorValue, final T lowThresh, 
 			final T highThresh, final double diffThresh) {
-		if (cursorValue.compareTo(lowThresh) < diffThresh) {
-			return false;
-		} else if (cursorValue.compareTo(highThresh) > diffThresh) {
+		if (cursorValue.compareTo(lowThresh) < diffThresh // TODO: class FloatType cannot be cast to class UnsignedByteType at UnnsignedByteType.compareTo(UnsignedByteType.java:50)
+			|| cursorValue.compareTo(highThresh) > diffThresh) {
 			return false;
 		}
 		return true;
 	}
-	
-	/* the contrast value defines the maximal difference between a pixel value and the max pixel value.
-	 * If the pixel value is out of bound, it is set to the max or min value, depending if it is higher or lower
-	 * than the mean or median value. If is equal to the latter, it is set to higher. Because. */
-	/*public void adjustContrast (final T nullValue, final double contrast) {
-		T min = input.firstElement().createVariable();
-		T max = input.firstElement().createVariable();
-		
-		computeMinMax(min,max); // TODO mean or median pls
-		
-		createMask(min, max, contrast);
-	}
-	
-	public void computeMinMax(T min, T max) {
-		final Cursor<T> cursor = (Cursor<T>)input.cursor();
-		T type = cursor.next();
-		
-		min = type;
-		max = type;
-		
-		while (cursor.hasNext()) {
-			type = cursor.next();
-			
-			if (type.compareTo(min)<0)
-				min = type;
-			
-			if (type.compareTo(max)>0)
-				max = type;
-		}
-	}*/
 }

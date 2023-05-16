@@ -3,28 +3,34 @@ package com.mycompany.imagej;
 import java.awt.Polygon;
 import java.util.ArrayList;
 
+import net.imglib2.Dimensions;
 import net.imglib2.img.Img;
-import net.imglib2.type.logic.BoolType; // A BooleanType wrapping a single primitive boolean variable (??)
+import net.imglib2.type.logic.NativeBoolType;
 import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.img.array.ArrayImgFactory;
 
 // simpler and heavily commented version of the ThresholdToSelection of ij.plugin.filter. Can be used with any thresholding method.
 public class PolygonFromThreshold {
 	Img<FloatType> img;
-	FormatImage<FloatType,BoolType, FloatType> formatImage;
-	Img<BoolType> binThresholded;
+	FormatImage<FloatType,NativeBoolType, FloatType> formatImage;
+	Img<NativeBoolType> binThresholded;
 	public Img<FloatType> thresholdedMask;
 	int width, height;
+	Dimensions dimensions;
 	
-	float lowThresh, highThresh ; // thresholding values
-	double diffThresh ;
 	
 	// is constructed with an ImagePlus and operates on an ImageProcessor thresholded mask
-	public PolygonFromThreshold(Img<FloatType> img) {
+	public PolygonFromThreshold(Img<FloatType> img, FloatType lowThresh, FloatType highThresh, double diffThresh) {
 		this.img = img;
-		formatImage = new FormatImage<FloatType, BoolType, FloatType>(this.img, binThresholded, thresholdedMask);
-		formatImage.createMask(null, null, 0); // TODO
+		dimensions = img;
+		this.binThresholded = new ArrayImgFactory<>(new NativeBoolType()).create(dimensions);
+		this.thresholdedMask = new ArrayImgFactory<>(new FloatType()).create(dimensions);
+		formatImage = new FormatImage<FloatType, NativeBoolType, FloatType>(this.img, binThresholded, thresholdedMask); // initialize the images
+		formatImage.createMask(lowThresh, highThresh, diffThresh);
 	}
 	
+	// TODO: other constructor which takes in a string for the thresholding technique and calls the createMask() with appropriate
+	// function interface from the Thresholds class
 	
 	public ArrayList<Polygon> createPolygons () {
 		width = (int)thresholdedMask.dimension(0);

@@ -8,21 +8,20 @@
 
 package com.mycompany.imagej;
 
-import net.imagej.Dataset;
-import net.imagej.ImageJ;
-import net.imagej.ops.OpService;
-
+import ij.IJ;
+import ij.ImageJ;
+import ij.ImagePlus;
+import ij.plugin.PlugIn;
+import ij.process.ImageConverter;
 import net.imglib2.img.Img;
 import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.Point;
 import net.imglib2.algorithm.region.hypersphere.HyperSphere;
 
-import org.scijava.command.Command;
-import org.scijava.plugin.Parameter;
+import org.apache.log4j.BasicConfigurator;
 import org.scijava.plugin.Plugin;
-import org.scijava.ui.UIService;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.awt.Polygon;
 
@@ -31,29 +30,35 @@ import java.awt.Polygon;
  * and replace the {@link run} method implementation with your own logic.
  * </p>
  */
-@Plugin(type = Command.class, menuPath = "Plugins>NucleiCounter")
-public class NucleiCounter implements Command {
-
-    @Parameter
-    private Dataset currentData;
-
-    @Parameter
-    private UIService uiService;
-
-    @Parameter
-    private OpService opService;
+public class NucleiCounter implements PlugIn {
     
     public ArrayList<Nucleus> nucleiList = new ArrayList<Nucleus>();
     public ArrayList<Polygon> nucleiPolygons = new ArrayList<Polygon>();
     
+    FloatType LOWTHRESH = new FloatType(34.0F);
+    FloatType HIGHTHRESH = new FloatType(96.0F);
+    double DIFFTHRESH = 0.0;
+    
     @Override
-    public void run() {
-        final Img<FloatType> image = (Img<FloatType>) currentData.getImgPlus().getImg();
-        PolygonFromThreshold polygonfromthreshold = new PolygonFromThreshold (image);
+    public void run(String arg) {
+    	// get the image into the appropriate format (grey-scale, Img<FloatType>)
+    	ImagePlus imp = IJ.getImage();
+    	ImageConverter ic = new ImageConverter(imp);
+    	ic.convertToGray8();
+    	imp.updateImage();
+        final Img<FloatType> image = ImageJFunctions.wrap(imp);
+        
+        // draw nuclei
+        PolygonFromThreshold polygonfromthreshold = new PolygonFromThreshold (image, LOWTHRESH, HIGHTHRESH, DIFFTHRESH);
         
         nucleiPolygons = polygonfromthreshold.createPolygons();
         getNucleiProperties();
         displayCentroids(image);
+        
+        System.out.println("Number of nuclei = " + nucleiList.size());
+        for (Nucleus n : nucleiList) {
+        	System.out.println("("+n.center.getDoublePosition(0) + ", " + n.center.getDoublePosition(1)+")");
+        }
     }
     
     // Draw spheres of radius 1 with every value inside set to 1 at the center of every nucleus
@@ -108,22 +113,28 @@ public class NucleiCounter implements Command {
      * @throws Exception
      */
     public static void main(final String... args) throws Exception {
-        // create the ImageJ application context with all available services
-        final ImageJ ij = new ImageJ();
-        ij.ui().showUI();
+        // Add appenders to the logger and initialize the log4j system
+    	BasicConfigurator.configure();
+    	
+		// set the plugins.dir property to make the plugin appear in the Plugins menu
+		// see: https://stackoverflow.com/a/7060464/1207769
+		Class<?> clazz = NucleiCounter.class;
+		java.net.URL url = clazz.getProtectionDomain().getCodeSource().getLocation();
+		java.io.File file = new java.io.File(url.toURI());
+		System.setProperty("plugins.dir", file.getAbsolutePath());
+		
+    	// create the ImageJ application context with all available services
+        new ImageJ();
 
         // ask the user for a file to open
-        final File file = ij.ui().chooseFile(null, "open");
+        ImagePlus image = IJ.openImage();
 
-        if (file != null) {
-            // load the dataset
-            final Dataset dataset = ij.scifio().datasetIO().open(file.getPath());
-
+        if (image != null) {
             // show the image
-            ij.ui().show(dataset);
+            image.show();
 
             // invoke the plugin
-            ij.command().run(NucleiCounter.class, true);
+            IJ.runPlugIn(clazz.getName(), "");
         }
     }
 
